@@ -8,8 +8,11 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Force explicit key injection to bypass Vercel environment loading bugs
+const apiKey = process.env.GEMINI_API_KEY;
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 // System instructions cleanly isolated
 const SYSTEM_PROMPT = `
@@ -73,12 +76,17 @@ app.post('/api/reframe', async (req, res) => {
 
     console.log("📡 Sending payload to Gemini API...");
 
+    // Double check authentication isn't missing at runtime
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY environment variable is missing entirely from runtime context.");
+    }
+
     // Using proper @google/genai SDK formatting constraints
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash', 
       contents: contents,
       config: {
-        systemInstruction: SYSTEM_PROMPT, // Correct placement for system prompts
+        systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
         temperature: 0.2 
       }
@@ -116,7 +124,4 @@ app.post('/api/reframe', async (req, res) => {
   }
 });
 
-const PORT = 3000;
-// Remove app.listen(PORT...) entirely!
-// Just export the app object so Vercel can wrap it inside its serverless runtime.
 export default app;
