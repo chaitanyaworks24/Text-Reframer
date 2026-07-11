@@ -126,8 +126,8 @@ app.post('/api/reframe', async (req, res) => {
   }
 });
 
-// ✅ New Express 5 style using regular expression capturing groups
-app.get('(.*)', (req, res) => {
+// ✅ Correct Express 5 catch-all syntax
+app.get('/:any*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
