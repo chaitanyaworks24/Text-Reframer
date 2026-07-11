@@ -10,15 +10,6 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-const apiKey = process.env.GEMINI_API_KEY;
-// Forces the SDK to bypass internal GCP metadata lookup loops that fail on Vercel
-const baseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
-
-const ai = new GoogleGenAI({ 
-  apiKey: apiKey,
-  baseURL: baseUrl 
-});
-
 const SYSTEM_PROMPT = `
 You are a fast, precise corporate communications proofreader. 
 Your only job is to fix the user's input for grammar, spelling, punctuation, and corporate professionalism. 
@@ -49,6 +40,29 @@ app.post('/api/reframe', async (req, res) => {
   console.log("=== 🛠️ NEW DEBUG RUN STARTED 🛠️ ===");
   try {
     const { text, imageBase64 } = req.body;
+    
+    // 🔍 Dynamic environment retrieval inside the runtime function loop
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const fallbackBaseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
+
+    console.log("🔑 API Key check status:", apiKey ? "Present (String verified)" : "MISSING / UNDEFINED");
+    console.log("🌐 Target Base URL:", fallbackBaseUrl);
+
+    if (!apiKey) {
+      return res.status(500).json({ 
+        success: false, 
+        error: "GEMINI_API_KEY environment variable is missing or blank in the runtime environment tree." 
+      });
+    }
+
+    // Initialize the SDK dynamically inside the route handler
+    const ai = new GoogleGenAI({ 
+      apiKey: apiKey,
+      httpOptions: {
+        baseUrl: fallbackBaseUrl
+      }
+    });
+
     let contents = [];
 
     if (text && text.trim() !== "") {
