@@ -1,14 +1,22 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// 🌐 Serve static files from your public folder explicitly
+app.use(express.static(path.join(__dirname, 'public')));
 
 const SYSTEM_PROMPT = `
 You are a fast, precise corporate communications proofreader. 
@@ -36,18 +44,24 @@ You must return a raw JSON array matching this exact schema:
 ]
 `;
 
+// ⚡ BACKEND API ENDPOINT
 app.post('/api/reframe', async (req, res) => {
   console.log("=== 🛠️ NEW DEBUG RUN STARTED 🛠️ ===");
   try {
     const { text, imageBase64 } = req.body;
     
-    // Fall back to a hardcoded string if process.env.GEMINI_API_KEY is blocked by Vercel context
     const apiKey = process.env.GEMINI_API_KEY;
     const fallbackBaseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
 
     console.log("🔑 API Key check status:", apiKey ? "Present (String verified)" : "MISSING / UNDEFINED");
 
-    // Initialize the SDK with the correct option name structure
+    if (!apiKey) {
+      return res.status(500).json({ 
+        success: false, 
+        error: "GEMINI_API_KEY environment variable is missing or blank in Vercel Cloud." 
+      });
+    }
+
     const ai = new GoogleGenAI({ 
       apiKey: apiKey,
       baseURL: fallbackBaseUrl
@@ -72,7 +86,7 @@ app.post('/api/reframe', async (req, res) => {
       return res.status(400).json({ success: false, error: "No content provided." });
     }
 
-    console.log("📡 Payload valid. Dispatching API handshake...");
+    console.log("📡 Dispatching API handshake...");
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash', 
@@ -85,14 +99,11 @@ app.post('/api/reframe', async (req, res) => {
     });
 
     const rawText = response.text;
-    console.log("📥 RAW TEXT FROM GEMINI:", JSON.stringify(rawText));
-
     if (!rawText) {
-      throw new Error("Gemini returned a completely empty text response wrapper.");
+      throw new Error("Gemini returned an empty response wrapper.");
     }
 
     let cleanedText = rawText.trim();
-
     if (cleanedText.startsWith("```")) {
       cleanedText = cleanedText.replace(/^```[a-zA-Z]*\n/, "").replace(/```$/, "").trim();
     }
@@ -103,31 +114,21 @@ app.post('/api/reframe', async (req, res) => {
     if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
       cleanedText = cleanedText.substring(jsonStartIndex, jsonEndIndex + 1);
     }
-    
-    console.log("🧹 CLEANED TEXT FOR PARSING:", cleanedText);
 
-    let parsedOptions;
-    try {
-      parsedOptions = JSON.parse(cleanedText);
-      console.log("✅ PARSED SUCCESS. ARRAY LENGTH:", Array.isArray(parsedOptions) ? parsedOptions.length : "NOT AN ARRAY");
-    } catch (parseErr) {
-      console.error("❌ JSON.parse CRASHED!");
-      throw new Error(`Failed to parse text payload into valid JSON structure. Content: ${cleanedText}`);
-    }
-
+    let parsedOptions = JSON.parse(cleanedText);
     const optionsArray = Array.isArray(parsedOptions) ? parsedOptions : [parsedOptions];
+
     return res.json({ success: true, options: optionsArray });
 
   } catch (error) {
-    console.error("💥 SYSTEM RUNTIME EXCEPTION REVEALED:");
-    console.error(error.stack || error.message || error);
-    console.log("========================================");
-    
-    return res.status(500).json({ 
-      success: false, 
-      error: error.message || "Internal server crash tracked." 
-    });
+    console.error("💥 SYSTEM RUNTIME EXCEPTION REVEALED:", error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// 🏡 FRONTEND FALLBACK: Direct everything else to index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
