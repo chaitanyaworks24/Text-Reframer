@@ -10,17 +10,15 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Force explicit key injection to bypass Vercel environment loading bugs
 const apiKey = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey });
 
-// System instructions cleanly isolated
 const SYSTEM_PROMPT = `
 You are a fast, precise corporate communications proofreader. 
 Your only job is to fix the user's input for grammar, spelling, punctuation, and corporate professionalism. 
 
 Keep the output almost identical to the original meaning and structure, but make it polished. 
-Provide exactly 3 versions with very subtle variations (e.g., slightly different transitions or word choice).
+Provide exactly 3 versions with very subtle variations.
 
 Provide the response in this strict JSON array format with no markdown wrappers:
 [
@@ -43,20 +41,18 @@ Provide the response in this strict JSON array format with no markdown wrappers:
 `;
 
 app.post('/api/reframe', async (req, res) => {
-  console.log("👉 Received a request from frontend...");
+  console.log("👉 Received request...");
 
   try {
     const { text, imageBase64 } = req.body;
     
-    // Dedicated array for purely user-facing content inputs
+    // Explicitly format contents as an array of Part objects for the new SDK
     let contents = [];
 
-    // Handle text input safely
     if (text && text.trim() !== "") {
-      contents.push(`User text to fix: "${text}"`);
+      contents.push({ text: `User text to fix: "${text}"` });
     }
 
-    // Handle image input safely
     if (imageBase64) {
       console.log("📸 Processing image data...");
       const base64Data = imageBase64.split(',')[1] || imageBase64;
@@ -66,22 +62,18 @@ app.post('/api/reframe', async (req, res) => {
           data: base64Data
         }
       });
-      contents.push("Extract the text from this image, fix it, and give 3 subtle variations matching the requested JSON structure.");
+      contents.push({ text: "Extract the text from this image, fix it, and give 3 subtle variations matching the requested JSON structure." });
     }
 
-    // Edge case safety handler
     if (contents.length === 0) {
       return res.status(400).json({ success: false, error: "No text or image content provided." });
     }
 
-    console.log("📡 Sending payload to Gemini API...");
-
-    // Double check authentication isn't missing at runtime
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is missing entirely from runtime context.");
+      throw new Error("GEMINI_API_KEY environment variable is missing from runtime context.");
     }
 
-    // Using proper @google/genai SDK formatting constraints
+    console.log("📡 Submitting to Gemini...");
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash', 
       contents: contents,
@@ -92,16 +84,19 @@ app.post('/api/reframe', async (req, res) => {
       }
     });
 
-    console.log("✅ Received response from Gemini!");
+    console.log("✅ Response received from Gemini");
+
+    if (!response.text) {
+      throw new Error("Gemini returned an empty response.");
+    }
 
     let responseText = response.text.trim();
 
-    // Clean up markdown fences if present
+    // Clean up unexpected markdown wrappers if the model injected them
     if (responseText.startsWith("```")) {
       responseText = responseText.replace(/^```[a-zA-Z]*\n/, "").replace(/```$/, "").trim();
     }
 
-    // Extract raw JSON boundaries safely
     const jsonStartIndex = responseText.indexOf('[');
     const jsonEndIndex = responseText.lastIndexOf(']');
 
@@ -113,15 +108,17 @@ app.post('/api/reframe', async (req, res) => {
     return res.json({ success: true, options });
 
   } catch (error) {
-    console.log("\n❌ ERROR DETECTED INSIDE BACKEND:");
-    console.error(error); 
-    console.log("---------------------------------\n");
-
+    console.error("❌ Runtime Server Error:", error);
     return res.status(500).json({ 
       success: false, 
       error: error.message || "Internal server error occurred." 
     });
   }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
 export default app;
