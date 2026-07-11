@@ -42,7 +42,7 @@ app.post('/api/reframe', async (req, res) => {
     const { text, imageBase64 } = req.body;
     
     // Fall back to a hardcoded string if process.env.GEMINI_API_KEY is blocked by Vercel context
-    const apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6LVfkopViKqtjXcbpyeH0-q35PTmSyD3PgrhlcHlp77uA";
+    const apiKey = process.env.GEMINI_API_KEY;
     const fallbackBaseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
 
     console.log("🔑 API Key check status:", apiKey ? "Present (String verified)" : "MISSING / UNDEFINED");
