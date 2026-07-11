@@ -41,26 +41,16 @@ app.post('/api/reframe', async (req, res) => {
   try {
     const { text, imageBase64 } = req.body;
     
-    // 🔍 Dynamic environment retrieval inside the runtime function loop
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    // Fall back to a hardcoded string if process.env.GEMINI_API_KEY is blocked by Vercel context
+    const apiKey = process.env.GEMINI_API_KEY || "AQ.Ab8RN6LVfkopViKqtjXcbpyeH0-q35PTmSyD3PgrhlcHlp77uA";
     const fallbackBaseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
 
     console.log("🔑 API Key check status:", apiKey ? "Present (String verified)" : "MISSING / UNDEFINED");
-    console.log("🌐 Target Base URL:", fallbackBaseUrl);
 
-    if (!apiKey) {
-      return res.status(500).json({ 
-        success: false, 
-        error: "GEMINI_API_KEY environment variable is missing or blank in the runtime environment tree." 
-      });
-    }
-
-    // Initialize the SDK dynamically inside the route handler
+    // Initialize the SDK with the correct option name structure
     const ai = new GoogleGenAI({ 
       apiKey: apiKey,
-      httpOptions: {
-        baseUrl: fallbackBaseUrl
-      }
+      baseURL: fallbackBaseUrl
     });
 
     let contents = [];
@@ -94,7 +84,6 @@ app.post('/api/reframe', async (req, res) => {
       }
     });
 
-    // 🔍 DEBUG CHECK 1: Capture the exact raw string returned by Gemini
     const rawText = response.text;
     console.log("📥 RAW TEXT FROM GEMINI:", JSON.stringify(rawText));
 
@@ -104,7 +93,6 @@ app.post('/api/reframe', async (req, res) => {
 
     let cleanedText = rawText.trim();
 
-    // Remove code block markdown helpers if Gemini sneaked them in
     if (cleanedText.startsWith("```")) {
       cleanedText = cleanedText.replace(/^```[a-zA-Z]*\n/, "").replace(/```$/, "").trim();
     }
@@ -118,18 +106,16 @@ app.post('/api/reframe', async (req, res) => {
     
     console.log("🧹 CLEANED TEXT FOR PARSING:", cleanedText);
 
-    // 🔍 DEBUG CHECK 2: Track JSON execution boundaries
     let parsedOptions;
     try {
       parsedOptions = JSON.parse(cleanedText);
       console.log("✅ PARSED SUCCESS. ARRAY LENGTH:", Array.isArray(parsedOptions) ? parsedOptions.length : "NOT AN ARRAY");
     } catch (parseErr) {
-      console.error("❌ JSON.parse CRASHED! Target string was invalid JSON layout.");
+      console.error("❌ JSON.parse CRASHED!");
       throw new Error(`Failed to parse text payload into valid JSON structure. Content: ${cleanedText}`);
     }
 
     const optionsArray = Array.isArray(parsedOptions) ? parsedOptions : [parsedOptions];
-
     return res.json({ success: true, options: optionsArray });
 
   } catch (error) {
