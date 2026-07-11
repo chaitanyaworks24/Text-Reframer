@@ -11,7 +11,13 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const apiKey = process.env.GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey });
+// Forces the SDK to bypass internal GCP metadata lookup loops that fail on Vercel
+const baseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com';
+
+const ai = new GoogleGenAI({ 
+  apiKey: apiKey,
+  baseURL: baseUrl 
+});
 
 const SYSTEM_PROMPT = `
 You are a fast, precise corporate communications proofreader. 
@@ -50,6 +56,7 @@ app.post('/api/reframe', async (req, res) => {
     }
 
     if (imageBase64) {
+      console.log("📸 Processing image data...");
       const base64Data = imageBase64.split(',')[1] || imageBase64;
       contents.push({
         inlineData: { mimeType: "image/png", data: base64Data }
@@ -107,7 +114,6 @@ app.post('/api/reframe', async (req, res) => {
       throw new Error(`Failed to parse text payload into valid JSON structure. Content: ${cleanedText}`);
     }
 
-    // Force array assurance
     const optionsArray = Array.isArray(parsedOptions) ? parsedOptions : [parsedOptions];
 
     return res.json({ success: true, options: optionsArray });
