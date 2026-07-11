@@ -126,8 +126,8 @@ app.post('/api/reframe', async (req, res) => {
   }
 });
 
-// 🏡 FRONTEND FALLBACK: Direct everything else to index.html
-app.get('*', (req, res) => {
+// ✅ New Express 5 style using regular expression capturing groups
+app.get('(.*)', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
