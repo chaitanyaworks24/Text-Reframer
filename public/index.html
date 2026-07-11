@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Workspace | Reframer</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --border: #e2e8f0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      background: var(--panel);
+      padding: 24px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.03);
+      border: 1px solid var(--border);
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 640px) {
+      body { padding: 50px 20px; }
+      .container { padding: 36px; }
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 6px 0;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    textarea {
+      width: 100%;
+      height: 110px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      resize: none;
+      box-sizing: border-box;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--text-main);
+      transition: all 0.2s ease;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+    }
+
+    .media-toolbar {
+      margin: 14px 0 18px 0;
+      display: flex;
+    }
+
+    .file-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: #fafafa;
+      transition: all 0.2s;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .reframe-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .reframe-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    /* Fixed Box Loading Layout */
+    .loading-container {
+      display: none;
+      text-align: center;
+      margin-top: 24px;
+      padding: 24px;
+      background: #fafafa;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    /* Strict uniform constraints for downloaded graphics */
+    .sticker-frame {
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 16px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      padding: 6px;
+      box-sizing: border-box;
+    }
+
+    .loading-sticker {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* Prevents stretching */
+    }
+
+    /* Fun animated classes for character movement */
+    .motion-bounce { animation: bounceEffect 0.5s ease-in-out infinite alternate; }
+    .motion-sway { animation: swayEffect 0.8s ease-in-out infinite alternate; }
+    .motion-spin { animation: spinEffect 1.2s ease-in-out infinite alternate; }
+
+    @keyframes bounceEffect {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-10px); }
+    }
+    @keyframes swayEffect {
+      0% { transform: rotate(-6deg); }
+      100% { transform: rotate(6deg); }
+    }
+    @keyframes spinEffect {
+      0% { transform: scale(0.95); }
+      100% { transform: scale(1.05); }
+    }
+
+    .loading-text {
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+
+    .loading-subtext {
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .results-stack {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .output-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .version-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .version-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0 0 10px 0;
+    }
+
+    .copy-action-btn {
+      background: white;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-main);
+      transition: all 0.15s;
+    }
+
+    .output-string {
+      font-size: 14px;
+      line-height: 1.55;
+      color: #1e293b;
+      margin: 0;
+      white-space: pre-wrap;
+    }
+
+    footer {
+      margin-top: auto;
+      padding-top: 40px;
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: center;
+      padding-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Corporate Reframer</h1>
+    <p class="subtitle">Enter your thoughts below or drop a screenshot.</p>
+  </header>
+  
+  <textarea id="inputText" placeholder="Type your message draft here... (Ctrl + Enter to submit)"></textarea>
+  
+  <div class="media-toolbar">
+    <label for="imageFile" class="file-label">
+      📎 Attach Screenshot
+    </label>
+    <input type="file" id="imageFile" accept="image/*" onchange="updateFileLabel(this)">
+  </div>
+
+  <button class="reframe-btn" id="submitBtn" onclick="processText()">Reframe</button>
+  
+  <!-- Loading Card Frame -->
+  <div class="loading-container" id="loadingState">
+    <div class="sticker-frame">
+      <img src="" id="loadingStickerImg" class="loading-sticker" alt="Loading...">
+    </div>
+    <div class="loading-text" id="loadingPhrases">Processing...</div>
+    <div class="loading-subtext" id="loadingSubtext">🎵 *TMKOC Theme Music Intensifies* 🎵</div>
+  </div>
+
+  <div class="results-stack" id="results"></div>
+</div>
+
+<footer>
+  Made with ❤️ for Kushimari
+</footer>
+
+<script>
+  // Mapped explicitly to match your local file names and extensions inside stickers/
+  const loadersPool = [
+    { image: "stickers/jetha.jpeg", motion: "motion-bounce", text: '"Nonsense! Eeey pagal aurat!"', sub: "Jethalal is stressed about your sentence layout." },
+    { image: "stickers/jethaa.jpeg", motion: "motion-bounce", text: '"Chai piyo, biscuit khao!"', sub: "Relax, Jetha is taking a snack break while parsing." },
+    { image: "stickers/jethya.jpeg", motion: "motion-bounce", text: '"Goli beta, masti nahi!"', sub: "Fixing naughty grammar mistakes." },
+    { image: "stickers/pookiejetha.jpeg", motion: "motion-spin", text: '"Aae haae, Jethaji... 😍"', sub: "Pookie Jetha is blushing at this corporate English." },
+    { image: "stickers/daya.jpeg", motion: "motion-sway", text: '"Hey Maa, Mataji!! Tapu ke papa!"', sub: "Daya is doing Garba on top of your typo errors!" },
+    { image: "stickers/bhide.jpeg", motion: "motion-sway", text: '"Main Gokuldham Ka Ek Matra Secretary! ✍️"', sub: "Bhide is checking your syntax rulebook." },
+    { image: "stickers/babita.jpeg", motion: "motion-spin", text: '"Hello Jetha ji! How are you?"', sub: "Polishing text to impress Babita ji." },
+    { image: "stickers/champak.jpeg", motion: "motion-bounce", text: '"Eey Jethiyaaaa! Bhandiya!"', sub: "Chachaji is angry at your broken vocabulary." },
+    { image: "stickers/popat.jpeg", motion: "motion-sway", text: '"Duniya hila dunga! Cancel cancel!"', sub: "Popatlal is striking down all bad punctuation." },
+    { image: "stickers/hathi.jpeg", motion: "motion-bounce", text: '"Sahi baat hai! 😋"', sub: "Dr. Hathi thinks this draft looks delicious." },
+    { image: "stickers/baka.jpeg", motion: "motion-spin", text: '"Kem palto! 🤪"', sub: "Baka is adding some extra spice to the flow." }
+  ];
+
+  document.getElementById('inputText').addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      processText();
+    }
+  });
+
+  function updateFileLabel(input) {
+    const label = document.querySelector('.file-label');
+    if (input.files && input.files[0]) {
+      label.innerText = `✓ Added`;
+      label.style.borderColor = 'var(--accent)';
+      label.style.color = 'var(--accent)';
+    }
+  }
+
+  async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  }
+
+  async function processText() {
+    const text = document.getElementById('inputText').value;
+    const fileInput = document.getElementById('imageFile');
+    const resultsDiv = document.getElementById('results');
+    const loadingDiv = document.getElementById('loadingState');
+    const stickerImg = document.getElementById('loadingStickerImg');
+    const phraseDiv = document.getElementById('loadingPhrases');
+    const subtextDiv = document.getElementById('loadingSubtext');
+    
+    if (!text && !fileInput.files[0]) return;
+
+    resultsDiv.innerHTML = '';
+    
+    // Pick a completely random character item from your custom list
+    const selection = loadersPool[Math.floor(Math.random() * loadersPool.length)];
+    
+    stickerImg.src = selection.image;
+    stickerImg.className = "loading-sticker " + selection.motion;
+    phraseDiv.innerText = selection.text;
+    subtextDiv.innerText = selection.sub;
+    
+    loadingDiv.style.display = 'block';
+
+    let imageBase64 = null;
+    if (fileInput.files[0]) {
+      imageBase64 = await fileToBase64(fileInput.files[0]);
+    }
+
+    try {
+      // Relative path deployment change implemented here
+      const response = await fetch('/api/reframe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, imageBase64 })
+      });
+      
+      const data = await response.json();
+      loadingDiv.style.display = 'none';
+
+      if(data.success) {
+        renderOptions(data.options);
+      } else {
+        resultsDiv.innerHTML = `<p style="color:#ef4444; font-size:13px; text-align:center;">Error processing request.</p>`;
+      }
+    } catch (err) {
+      loadingDiv.style.display = 'none';
+      resultsDiv.innerHTML = `<p style="color:#ef4444; font-size:13px; text-align:center;">Could not reach local server.</p>`;
+    }
+  }
+
+  function renderOptions(options) {
+    const resultsDiv = document.getElementById('results');
+
+    options.forEach((opt, index) => {
+      const card = document.createElement('div');
+      card.className = 'output-card';
+      
+      card.innerHTML = `
+        <div class="card-meta">
+          <span class="version-tag">${opt.type || 'Option'}</span>
+          <button class="copy-action-btn" onclick="copyToClipboard('${index}', this)">Copy</button>
+        </div>
+        <p class="version-desc">${opt.description || ''}</p>
+        <p class="output-string" id="text-${index}">${opt.text}</p>
+      `;
+      resultsDiv.appendChild(card);
+    });
+  }
+
+  function copyToClipboard(index, button) {
+    const text = document.getElementById(`text-${index}`).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      button.innerText = 'Copied!';
+      button.style.borderColor = '#22c55e';
+      button.style.color = '#22c55e';
+      setTimeout(() => {
+        button.innerText = 'Copy';
+        button.style.borderColor = 'var(--border)';
+        button.style.color = 'var(--text-main)';
+      }, 1500);
+    });
+  }
+</script>
+</body>
+</html>
